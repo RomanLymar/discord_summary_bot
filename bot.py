@@ -44,30 +44,30 @@ async def fetch_recent_messages():
     for channel in guild.text_channels:
         try:
             async for message in channel.history(after=yesterday, oldest_first=True):
-                if message.author.bot:
-                    continue
-                member = guild.get_member(message.author.id)
-                if not member:
-                    continue
-                role_names = [role.name for role in member.roles]
-                if IMPORTANT_ROLE in role_names:
+                if should_collect_message(guild, message):
                     important_messages.append(message)
         except (discord.Forbidden, discord.HTTPException) as e:
             print(f"❌ Не вдалося прочитати канал {channel.name}: {e}")
 
+# Фільтрація повідомлень: тільки від учасників із потрібною роллю, без команд
+def should_collect_message(guild, message):
+    if message.author.bot:
+        return False
+    if message.content.startswith('!'):
+        return False
+
+    member = guild.get_member(message.author.id)
+    if not member:
+        return False
+
+    role_names = [role.name for role in member.roles]
+    return IMPORTANT_ROLE in role_names
+
 # Ловити нові повідомлення після запуску
 @bot.event
 async def on_message(message):
-    if message.author.bot:
-        return
-
-    guild = bot.get_guild(GUILD_ID)
-    member = guild.get_member(message.author.id)
-
-    if member:
-        role_names = [role.name for role in member.roles]
-        if IMPORTANT_ROLE in role_names:
-            important_messages.append(message)
+    if should_collect_message(bot.get_guild(GUILD_ID), message):
+        important_messages.append(message)
 
     await bot.process_commands(message)
 
@@ -86,7 +86,7 @@ async def digest(ctx):
                 content_preview = "Без тексту (можливо тільки вкладення)"
 
             embed.add_field(
-                name=content_preview,
+                name=f"#{msg.channel.name} – {content_preview}",
                 value=f"[Перейти до повідомлення]({msg.jump_url})",
                 inline=False
             )
@@ -111,7 +111,7 @@ async def daily_summary():
                 content_preview = "Без тексту (можливо тільки вкладення)"
 
             embed.add_field(
-                name=content_preview,
+                name=f"#{msg.channel.name} – {content_preview}",
                 value=f"[Перейти до повідомлення]({msg.jump_url})",
                 inline=False
             )
