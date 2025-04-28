@@ -11,66 +11,56 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 GUILD_ID = int(os.getenv('GUILD_ID'))
 CHANNEL_ID = int(os.getenv('CHANNEL_ID'))
-SUMMARY_ROLE_ID = int(os.getenv('SUMMARY_ROLE_ID'))  # ID ролі @Summary
+SUMMARY_ROLE_ID = int(os.getenv('SUMMARY_ROLE_ID'))
 
-# Налаштування інтентів
+# Ініціалізація бота
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 intents.members = True
 
-# Ініціалізація бота
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Список важливих повідомлень
 important_messages = []
 
-# Подія при запуску бота
+# Коли бот готовий
 @bot.event
 async def on_ready():
     print(f"✅ Бот запущений як {bot.user}")
     daily_summary.start()
 
-# Обробка нових повідомлень
+# Обробка повідомлень
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # Ігнорувати команду !digest, щоб вона не потрапила у дайджест
-    if message.content.startswith('!digest'):
-        await bot.process_commands(message)
-        return
+    summary_mention = f"<@&{SUMMARY_ROLE_ID}>"
 
-    # Перевірка, чи є у повідомленні згадка ролі Summary
-    if f"<@&{SUMMARY_ROLE_ID}>" in message.content:
+    if summary_mention in message.content:
         important_messages.append(message)
 
     await bot.process_commands(message)
 
-# Формування дайджесту
-async def send_digest(channel):
+# Функція для надсилання дайджесту
+async def send_summary(channel):
     if important_messages:
-        # Встановити часову зону Києва
-        kyiv_tz = pytz.timezone('Europe/Kyiv')
-        now = datetime.datetime.now(kyiv_tz)
-        yesterday = now - datetime.timedelta(days=1)
-        title = f"📚 Выжимка 2TOP SQUAD {yesterday.strftime('%d.%m')}-{now.strftime('%d.%m')}"
+        today = datetime.datetime.now(pytz.timezone('Europe/Kyiv'))
+        yesterday = today - datetime.timedelta(days=1)
 
         embed = discord.Embed(
-            title=title,
+            title=f"📚 Выжимка 2TOP SQUAD {yesterday.strftime('%d.%m')}-{today.strftime('%d.%m')}",
             color=discord.Color.blue()
         )
 
         for msg in important_messages:
-            # Отримати назву каналу
-            channel_name = msg.channel.name
             content_preview = msg.content.split('\n')[0][:100]
             if not content_preview:
                 content_preview = "Без тексту (можливо тільки вкладення)"
 
             embed.add_field(
-                name=f"#{channel_name} – {content_preview}",
+                name=f"#{msg.channel.name} – {content_preview}",
                 value=f"[Перейти до повідомлення]({msg.jump_url})",
                 inline=False
             )
@@ -80,21 +70,16 @@ async def send_digest(channel):
     else:
         await channel.send("ℹ️ Немає нових важливих повідомлень на цей момент.")
 
-# Ручна команда для надсилання дайджеста
+# Команда !digest для ручного збору
 @bot.command()
 async def digest(ctx):
-    channel = bot.get_channel(CHANNEL_ID)
-    await send_digest(channel)
+    await send_summary(ctx.channel)
 
-# Автоматичне надсилання дайджеста щодня о 6:00 за Києвом
-@tasks.loop(minutes=1)
+# Автоматичний дайджест о 6:00 ранку за Києвом
+@tasks.loop(time=datetime.time(hour=6, minute=0, tzinfo=pytz.timezone('Europe/Kyiv')))
 async def daily_summary():
-    kyiv_tz = pytz.timezone('Europe/Kyiv')
-    now = datetime.datetime.now(kyiv_tz)
-
-    if now.hour == 6 and now.minute == 0:
-        channel = bot.get_channel(CHANNEL_ID)
-        await send_digest(channel)
+    channel = bot.get_channel(CHANNEL_ID)
+    await send_summary(channel)
 
 # Запуск бота
 bot.run(TOKEN)
