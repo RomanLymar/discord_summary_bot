@@ -13,6 +13,7 @@ GUILD_ID = int(os.getenv('GUILD_ID'))
 CHANNEL_ID = int(os.getenv('CHANNEL_ID'))
 SUMMARY_ROLE_ID = int(os.getenv('SUMMARY_ROLE_ID'))
 
+# Ініціалізація бота
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -23,16 +24,15 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"✅ Бот запущений як {bot.user}")
-    if not daily_summary.is_running():
-        daily_summary.start()
-        print("🕓 Запущено цикл daily_summary")
+    daily_summary.start()
 
 # Збір важливих повідомлень за попередній день
 async def collect_important_messages():
     guild = bot.get_guild(GUILD_ID)
     summary_mention = f"<@&{SUMMARY_ROLE_ID}>"
 
-    now = datetime.datetime.now(pytz.timezone('Europe/Kyiv'))
+    kyiv_tz = pytz.timezone('Europe/Kyiv')
+    now = datetime.datetime.now(kyiv_tz)
     start = (now - datetime.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     end = start + datetime.timedelta(days=1)
 
@@ -53,8 +53,8 @@ async def send_summary(channel):
     important_messages = await collect_important_messages()
 
     if important_messages:
-        now = datetime.datetime.now(pytz.timezone('Europe/Kyiv'))
-        summary_date = (now - datetime.timedelta(days=1)).strftime('%d.%m')
+        kyiv_tz = pytz.timezone('Europe/Kyiv')
+        summary_date = (datetime.datetime.now(kyiv_tz) - datetime.timedelta(days=1)).strftime('%d.%m')
 
         embed = discord.Embed(
             title=f"📚 Выжимка 2TOP SQUAD {summary_date}",
@@ -80,12 +80,13 @@ async def send_summary(channel):
 async def digest(ctx):
     await send_summary(ctx.channel)
 
-# Автоматичний дайджест о 6:00 ранку за Києвом
-@tasks.loop(time=datetime.time(hour=6, minute=0, tzinfo=pytz.timezone('Europe/Kyiv')))
+# Автоматичний дайджест о 7:30 ранку за Києвом
+@tasks.loop(time=datetime.time(hour=7, minute=30, tzinfo=pytz.timezone('Europe/Kyiv')))
 async def daily_summary():
     channel = bot.get_channel(CHANNEL_ID)
     await send_summary(channel)
 
+# Запуск бота
 bot.run(TOKEN)
 
 
