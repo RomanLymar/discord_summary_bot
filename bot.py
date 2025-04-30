@@ -85,9 +85,7 @@ async def daily_summary():
 
 # Запуск
 bot.run(TOKEN)
-git add bot.py
-git commit -m "feat: зміна часу публікації дайджесту на 08:00"
-git push
+
 
 
 
