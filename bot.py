@@ -77,15 +77,14 @@ async def send_summary(channel):
 async def digest(ctx):
     await send_summary(ctx.channel)
 
-# Автоматичне виконання о 8:00
-@tasks.loop(time=datetime.time(hour=8, minute=0, tzinfo=pytz.timezone('Europe/Kyiv')))
+# Автоматичне виконання о 01:00 ранку за Києвом
+@tasks.loop(time=datetime.time(hour=1, minute=0, tzinfo=pytz.timezone('Europe/Kyiv')))
 async def daily_summary():
     channel = bot.get_channel(CHANNEL_ID)
     await send_summary(channel)
 
 # Запуск
 bot.run(TOKEN)
-
 
 
 
