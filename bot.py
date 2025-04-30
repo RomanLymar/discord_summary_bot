@@ -23,7 +23,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"✅ Бот запущений як {bot.user}")
-    daily_summary.start()
+    if not daily_summary.is_running():
+        daily_summary.start()
+        print("🕓 Запущено цикл daily_summary")
 
 # Збір важливих повідомлень за попередній день
 async def collect_important_messages():
@@ -85,5 +87,6 @@ async def daily_summary():
     await send_summary(channel)
 
 bot.run(TOKEN)
+
 
 
